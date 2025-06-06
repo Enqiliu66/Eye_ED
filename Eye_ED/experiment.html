@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>进食障碍眼动干预程序</title>
+
+  <!-- 引入 Google Fonts，让界面更显专业 -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
+
+  <!-- jsPsych 相关脚本（保持原来版本不变） -->
+  <script src="https://unpkg.com/jspsych@8.0.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-preload@2.0.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.0.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.0.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@2.0.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-audio-keyboard-response@2.0.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-webgazer-init-camera@2.0.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-webgazer-calibrate@2.0.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-webgazer-validate@2.0.0"></script>
+  <script src="https://cdn.jsdelivr.net/gh/jspsych/jspsych@jspsych@7.0.0/examples/js/webgazer/webgazer.js"></script>
+  <script src="https://unpkg.com/@jspsych/extension-webgazer@1.0.3"></script>
+
+  <style>
+    /* =========== 全局重置与基础字体 =========== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+      font-family: 'Roboto', 'Microsoft YaHei', sans-serif;
+      background: #f5f6f8;
+      color: #333;
+      overflow: hidden; /* 禁止整个页面滚动 */
+    }
+
+    /* =========== 顶部导航栏 =========== */
+    .header {
+      width: 100%;
+      background: linear-gradient(90deg, #2c3e50, #4b6082);
+      padding: 15px 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+    }
+    .header h1 {
+      color: #fff;
+      font-weight: 500;
+      font-size: 1.6rem;
+      letter-spacing: 1px;
+    }
+
+    /* =========== jsPsych 内容容器：在导航栏下方，填满剩余高度，并居中所有内容 =========== */
+    #jspsych-target {
+      position: absolute;
+      top: 70px; /* 导航栏高度 */
+      left: 0;
+      width: 100%;
+      height: calc(100vh - 70px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f6f8;
+    }
+    /* 由于 jsPsych 会在这个容器内生成 .jspsych-display-element，再嵌入 .jspsych-content，我们也尽量把内容容器撑满并居中 */
+    #jspsych-target .jspsych-display-element {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f6f8;
+    }
+    #jspsych-target .jspsych-content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      max-height: 100%;
+    }
+
+    /* =========== 食物展示区（调整为固定最大宽度并自动水平居中） =========== */
+    .food-container {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;            /* 水平自动居中 */
+      height: 70vh;
+      border-radius: 20px;
+      background: #ffffff;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    .food-item {
+      width: 48%;
+      height: 100%;
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      border: 4px solid transparent;
+      background-color: #fafafa;
+      cursor: pointer;
+    }
+    .food-item:hover {
+      transform: translateY(-5px) scale(1.03);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15);
+    }
+    .food-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .food-label {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      text-align: center;
+      padding: 12px 0;
+      font-weight: 500;
+      font-size: 1.1rem;
+      letter-spacing: 0.5px;
+    }
+    .low-calorie {
+      border-color: #27ae60;
+    }
+    .high-calorie {
+      border-color: #c0392b;
+    }
+    .fixation {
+      font-size: 100px;
+      color: #555;
+      user-select: none;
+    }
+
+    /* =========== 音乐指示条 =========== */
+    .music-indicator {
+      position: fixed;
+      top: 90px; /* 导航栏下方 */
+      right: 30px;
+      background: linear-gradient(90deg, #1abc9c, #16a085);
+      color: #fff;
+      padding: 12px 28px;
+      border-radius: 30px;
+      font-weight: 500;
+      font-size: 1rem;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 1001;
+    }
+
+    /* =========== 按钮统一样式，并且居中 =========== */
+    button {
+      background: linear-gradient(90deg, #2980b9, #3498db);
+      border: none;
+      color: #fff;
+      padding: 14px 36px;
+      text-align: center;
+      font-size: 1rem;
+      margin: 6px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    button:hover {
+      background: linear-gradient(90deg, #2572a5, #2c82c2);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+    }
+    /* jsPsych html-button-response 类型的按钮容器水平居中 */
+    .jspsych-html-button-response .jspsych-button-container {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+
+    /* =========== 居中文字模块，字体加大 =========== */
+    .centered-text {
+      text-align: center;
+      padding: 20px 30px;
+      color: #444;
+      line-height: 1.6;
+    }
+    .centered-text p {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    /* =========== 结束页面下载按钮区 =========== */
+    .footer-buttons {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    /* =========== 页脚 =========== */
+    .footer {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #888;
+      font-size: 0.9rem;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 顶部导航栏 -->
+  <div class="header">
+    <h1>进食障碍眼动干预实验</h1>
+  </div>
+
+  <!-- 音乐播放指示 -->
+  <div class="music-indicator" id="music-indicator">音乐播放中</div>
+
+  <!-- jsPsych 渲染目标容器（位于导航栏下方，填满剩余区域）-->
+  <div id="jspsych-target"></div>
+
+  <!-- 页脚 -->
+  <div class="footer">2025 北京师范大学 Eye—ED 项目组联合出品。</div>
+
+  <script>
+    /* 初始化 jsPsych，将所有内容都渲染到 id="jspsych-target" 里 */
+    const jsPsych = initJsPsych({
+      display_element: 'jspsych-target',
+      extensions: [
+        { type: jsPsychExtensionWebgazer }
+      ]
+    });
+
+    /* === 动态生成 低/高热量 图片列表 === */
+    // 假设你的图片放在 images/low/001.jpg … images/low/005.jpg
+    //               以及 images/high/001.jpg … images/high/005.jpg
+    const lowCalorieImages = [];
+    const highCalorieImages = [];
+    const numImages = 5; // 共 5 张低热量，5 张高热量，如果扩充，直接改成 10、15 就行
+
+    for (let i = 1; i <= numImages; i++) {
+      // 保证编号为 3 位："001"、"002"、…
+      const idx = ('00' + i).slice(-3);
+      lowCalorieImages.push('images/low/' + idx + '.jpg');
+      highCalorieImages.push('images/high/' + idx + '.jpg');
+    }
+
+    /* 音乐文件列表（保持不变） */
+    const musicFiles = [
+      'music/calm_music.mp3',
+      'music/positive_sound.mp3'
+    ];
+
+    /* ===== 提前初始化音乐播放器 ===== */
+    // 这样第一组图片出现时，window.globalAudio 已存在并且循环播放属性已设好
+    window.globalAudio = new Audio(musicFiles[0]);
+    window.globalAudio.loop = true;
+
+    /* 预加载所有图片和音乐 */
+    const imagesToPreload = [...lowCalorieImages, ...highCalorieImages];
+    const audioToPreload = musicFiles;
+    const preload = {
+      type: jsPsychPreload,
+      images: imagesToPreload,
+      audio: audioToPreload,
+      message: '<div class="centered-text"><p>正在加载资源，请稍候…</p></div>'
+    };
+
+    const timeline = [];
+    timeline.push(preload);
+
+    /* ==== 校准相关的各个步骤 ==== */
+    const camera_instructions = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: `
+        <div class="centered-text">
+          <p>为了参与实验，您必须允许使用您的摄像头。</p>
+          <p>您将在下一屏幕收到权限请求。</p>
+          <p>如果您不同意使用摄像头，将无法参与本实验。</p>
+          <p>摄像头初始化可能需要最多30秒时间。</p>
+        </div>
+      `,
+      choices: ['明白了']
+    };
+    timeline.push(camera_instructions);
+
+    const init_camera = { type: jsPsychWebgazerInitCamera };
+    timeline.push(init_camera);
+
+    const calibration_instructions = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: `
+        <div class="centered-text">
+          <p>现在将进行眼动校准，以便软件使用您的眼部图像预测您的注视位置。</p>
+          <p>您将看到一系列圆点出现在屏幕上。请注视每个圆点并点击它。</p>
+        </div>
+      `,
+      choices: ['明白了']
+    };
+    timeline.push(calibration_instructions);
+
+    const calibration = {
+      type: jsPsychWebgazerCalibrate,
+      calibration_points: [
+        [25, 25], [75, 25], [50, 50], [25, 75], [75, 75]
+      ],
+      repetitions_per_point: 2,
+      randomize_calibration_order: true
+    };
+    timeline.push(calibration);
+
+    const validation_instructions = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: `
+        <div class="centered-text">
+          <p>现在我们将测量校准的准确性。</p>
+          <p>请注视屏幕上出现的每个圆点。</p>
+          <p style="font-weight: bold;">这次您不需要点击圆点。</p>
+        </div>
+      `,
+      choices: ['明白了'],
+      post_trial_gap: 1000
+    };
+    timeline.push(validation_instructions);
+
+    const validation = {
+      type: jsPsychWebgazerValidate,
+      validation_points: [
+        [25, 25], [75, 25], [50, 50], [25, 75], [75, 75]
+      ],
+      roi_radius: 200,
+      time_to_saccade: 1000,
+      validation_duration: 2000,
+      data: { task: 'validate' }
+    };
+    timeline.push(validation);
+
+    const recalibrate_instructions = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: `
+        <div class="centered-text">
+          <p>校准的准确性低于预期水平。</p>
+          <p>让我们再尝试校准一次。</p>
+          <p>在下一屏幕，请注视圆点并点击它们。</p>
+        </div>
+      `,
+      choices: ['好的']
+    };
+    const recalibrate = {
+      timeline: [recalibrate_instructions, calibration, validation_instructions, validation],
+      conditional_function: function() {
+        const val_data = jsPsych.data.get().filter({ task: 'validate' }).values()[0];
+        return val_data.percent_in_roi.some(x => x < 50);
+      },
+      data: { phase: 'recalibration' }
+    };
+    timeline.push(recalibrate);
+
+    const calibration_done = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: `
+        <div class="centered-text">
+          <p>太好了，校准已完成！</p>
+        </div>
+      `,
+      choices: ['继续']
+    };
+    timeline.push(calibration_done);
+
+    /* ==== 欢迎页 和 实验说明 ==== */
+    const welcome = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="centered-text">
+          <p>欢迎参加进食障碍眼动干预实验。按任意键继续。</p>
+        </div>
+      `
+    };
+    timeline.push(welcome);
+
+    const instructions = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: `
+        <div class="centered-text">
+          <p>在实验中，屏幕左右两侧将分别呈现<span style="color:#27ae60;"><b>低热量食物</b></span>和<span style="color:#c0392b;"><b>高热量食物</b></span>图片。</p>
+          <p>当您注视<span style="color:#27ae60;"><b>低热量食物</b></span>时，将播放愉悦的音乐。</p>
+          <p>当您注视<span style="color:#c0392b;"><b>高热量食物</b></span>时，音乐将停止播放。</p>
+          <p>实验共有 20 个试次，每个试次持续 15 秒。</p>
+          <p>请按任意键开始实验。</p>
+        </div>
+      `,
+      post_trial_gap: 2000
+    };
+    timeline.push(instructions);
+
+    /* ==== 构建 20 个试次：随机抽取、随机左右安放（使用 let 确保闭包正确） ==== */
+    const trial_count = 20;
+    const trials = [];
+
+    for (let i = 0; i < trial_count; i++) {
+      // 1. 随机抽取一张低热量、一张高热量（允许重复，如需“无重复”可改成 splice）
+      const lowImageIdx = jsPsych.randomization.sampleWithoutReplacement(
+        Array.from({length: lowCalorieImages.length}, (_, k) => k),
+        1
+      )[0];
+      const highImageIdx = jsPsych.randomization.sampleWithoutReplacement(
+        Array.from({length: highCalorieImages.length}, (_, k) => k),
+        1
+      )[0];
+      const lowImage = lowCalorieImages[lowImageIdx];
+      const highImage = highCalorieImages[highImageIdx];
+
+      // 2. 随机决定 左侧是否为 低热量
+      const leftIsLow = Math.random() < 0.5;
+
+      // —— 1）注视点 ——
+      trials.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<div class="fixation">+</div>',
+        choices: "NO_KEYS",
+        // 注视 0.8–1.2 秒
+        trial_duration: jsPsych.randomization.sampleWithoutReplacement(
+          [800, 1000, 1200], 1
+        )[0],
+        data: { task: 'fixation', trial_index: i + 1 }
+      });
+
+      // —— 2）图片展示试次 ——
+      trials.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function() {
+          // 这里的 leftImage、highImage、leftIsLow 都是本次试次专属常量
+          const leftImageSrc  = leftIsLow ? lowImage : highImage;
+          const rightImageSrc = leftIsLow ? highImage : lowImage;
+          const leftClass     = leftIsLow ? 'low-calorie' : 'high-calorie';
+          const rightClass    = leftIsLow ? 'high-calorie' : 'low-calorie';
+          const leftLabel     = leftIsLow ? '低热量食物' : '高热量食物';
+          const rightLabel    = leftIsLow ? '高热量食物' : '低热量食物';
+
+          return `
+            <div class="food-container">
+              <div class="food-item ${leftClass}" id="left-food">
+                <img src="${leftImageSrc}" />
+                <div class="food-label">${leftLabel}</div>
+              </div>
+              <div class="food-item ${rightClass}" id="right-food">
+                <img src="${rightImageSrc}" />
+                <div class="food-label">${rightLabel}</div>
+              </div>
+            </div>
+          `;
+        },
+        trial_duration: 15000, // 15 秒
+        choices: "NO_KEYS",
+        data: {
+          task: 'test',
+          trial_index: i + 1,
+          left_is_low: leftIsLow,
+          low_calorie: lowImage,
+          high_calorie: highImage
+        },
+        extensions: [
+          {
+            type: jsPsychExtensionWebgazer,
+            params: { targets: ['#left-food', '#right-food'] }
+          }
+        ],
+        on_start: function() {
+          // 重新计算本次试次中低热量图片的 DOM 位置
+          const lowSelector  = leftIsLow ? '#left-food' : '#right-food';
+          const musicIndicator = document.getElementById('music-indicator');
+          const audio = window.globalAudio;
+
+          // 每 200 ms 检测一次注视位置
+          this.webgazerCallback = function() {
+            if (!webgazer) return;
+            webgazer.getCurrentPrediction().then(function(pred) {
+              if (!pred) return;
+              const x = pred.x, y = pred.y;
+
+              const lowEl = document.querySelector(lowSelector);
+              if (lowEl) {
+                const rect = lowEl.getBoundingClientRect();
+                const inLow = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+                if (inLow) {
+                  if (audio.paused) {
+                    audio.play().catch(e => console.log('播放失败', e));
+                    musicIndicator.style.display = 'block';
+                  }
+                } else {
+                  if (!audio.paused) {
+                    audio.pause();
+                    musicIndicator.style.display = 'none';
+                  }
+                }
+              }
+            });
+          };
+
+          this.interval = setInterval(this.webgazerCallback, 200);
+        },
+        on_finish: function() {
+          clearInterval(this.interval);
+          const musicIndicator = document.getElementById('music-indicator');
+          if (musicIndicator) musicIndicator.style.display = 'none';
+          if (window.globalAudio && !window.globalAudio.paused) {
+            window.globalAudio.pause();
+          }
+        }
+      });
+    }
+
+    // 将所有 trials 按顺序插入 timeline（不再二次打乱，让上面每次循环就决定好了顺序）
+    timeline.push({
+      timeline: trials,
+      randomize_order: false
+    });
+
+    /* ==== 结束页面 ==== */
+    const done = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: `
+        <div class="centered-text">
+          <p>实验完成！</p>
+          <p>如果您需要下载实验数据，请选择格式：</p>
+        </div>
+      `,
+      choices: ['下载 CSV', '下载 JSON'],
+      on_finish: function(data) {
+        if (data.response === 0) {
+          jsPsych.data.get().localSave('csv', '进食障碍眼动干预数据.csv');
+        }
+        if (data.response === 1) {
+          jsPsych.data.get().localSave('json', '进食障碍眼动干预数据.json');
+        }
+      }
+    };
+    timeline.push(done);
+
+    /* ==== 运行实验 ==== */
+    jsPsych.run(timeline);
+  </script>
+</body>
+</html>
