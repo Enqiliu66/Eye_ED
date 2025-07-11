@@ -531,25 +531,52 @@
     });
 
     /* ==== 结束页面 ==== */
-    const done = {
-      type: jsPsychHtmlButtonResponse,
-      stimulus: `
-        <div class="centered-text">
-          <p>实验完成！</p>
-          <p>如果您需要下载实验数据，请选择格式：</p>
-        </div>
-      `,
-      choices: ['下载 CSV', '下载 JSON'],
-      on_finish: function(data) {
-        if (data.response === 0) {
-          jsPsych.data.get().localSave('csv', '进食障碍眼动干预数据.csv');
-        }
-        if (data.response === 1) {
-          jsPsych.data.get().localSave('json', '进食障碍眼动干预数据.json');
-        }
-      }
-    };
-    timeline.push(done);
+    // 实验结束后发送数据到 Google Sheets
+const sendDataToGoogleSheets = () => {
+  // 获取所有实验数据（过滤出测试 trial）
+  const testData = jsPsych.data.get().filter({ task: 'test' }).values();
+  
+  // 你的 Google Apps Script Web 应用 URL
+  const apiUrl = 'YOUR_WEB_APP_URL'; // 替换为你复制的 URL
+  
+  // 逐个发送每行数据（避免超出 URL 参数长度限制）
+  testData.forEach((row, index) => {
+    // 延迟发送每行数据，避免服务器限流
+    setTimeout(() => {
+      // 使用 FormData 构建 POST 请求
+      const formData = new FormData();
+      Object.keys(row).forEach(key => {
+        formData.append(key, row[key]);
+      });
+      
+      // 发送数据
+      fetch(apiUrl, {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.text())
+      .then(result => console.log(`数据行 ${index + 1} 发送成功:`, result))
+      .catch(error => console.error(`数据行 ${index + 1} 发送失败:`, error));
+      
+    }, index * 500); // 每行间隔 500ms
+  });
+};
+
+  // 在实验结束时调用
+  const done = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `
+      <div class="centered-text">
+        <p>实验完成！数据已自动保存。</p>
+      </div>
+    `,
+    choices: ['完成'],
+    on_finish: function() {
+      // 发送数据到 Google Sheets
+      sendDataToGoogleSheets();
+    }
+  };
+  timeline.push(done);
 
     /* ==== 运行实验 ==== */
     jsPsych.run(timeline);
