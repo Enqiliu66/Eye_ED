@@ -537,7 +537,7 @@ const sendDataToGoogleSheets = () => {
   const testData = jsPsych.data.get().filter({ task: 'test' }).values();
   
   // 你的 Google Apps Script Web 应用 URL
-  const apiUrl = 'YOUR_WEB_APP_URL'; // 替换为你复制的 URL
+  const apiUrl = 'https://script.google.com/macros/s/AKfycbwb0DInnSKzzOGdjBj1j_X6AmoCPQn_anJn4SqtZCx6ngevsHu71e0VKRSrkkJxJ9g/exec'; // 替换为你复制的 URL
   
   // 逐个发送每行数据（避免超出 URL 参数长度限制）
   testData.forEach((row, index) => {
